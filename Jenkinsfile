@@ -18,6 +18,12 @@ pipeline{
     NEXUSIP = 'localhost'
     NEXUSPORT =  '8081'
     NEXUS_LOGIN = 'nexuslogin' 
+    //////////////////////////////
+    ARTIFCAT_NAME = "vprofile-v${BUILD_ID}.war"
+    AWS_S3_BUCKET = 'vpro-cicd-jenbean'
+    AWS_EB_APP_NAME = 'vproapp' // application name on beanstalk
+    AWS_EB_ENV      = 'vproapp-env'  // env name
+    AWS_EP_APP_VERSION = "${BUILD_ID}"  // version name will be BUILD_ID of pipeline #!
     }
 
   stages{
@@ -107,6 +113,21 @@ pipeline{
  }
 
 
+/////////////////////////////////////////////////////////////////////
+//CD_stage
+
+     stage('deploy to stage bean'){
+      withAWS( credentials: 'beancreds' , region: 'us-east-1') {       // beancreds is save at jenkins credentials
+     
+      sh 'aws s3 cp ./target/vprofile-v2.war s3://$AWS_S3_BUCKET/$ARTIFCAT_NAME '  // upload  artifact to s3 
+      sh 'aws elasticbeanstalk create-application-version --application-name $AWS_EP_APP_NAME  --version-label $AWS_EP_APP_VERSION --source-bundle S3Bucket=$AWS_S3_BUCKET,S3Key=$ARTIFACT_NAME' // create new application version in beanstalk 
+      sh 'aws elasticbeanstalk update-enviroment --application-name= $aws_EP_APP_NAME --enviroment-name $AWS_EP_ENV --version-label $AWS_EP_APP_VERSION' // deploy this application version to beanstalk enviroment 
+
+      } 
+    }
+      
+     
+
 
 
 
@@ -114,6 +135,8 @@ pipeline{
 
   }
   
+  //////////////////////////
+  //slack INTEGRATION
   post {
         always  {
             echo 'slack notification.'
